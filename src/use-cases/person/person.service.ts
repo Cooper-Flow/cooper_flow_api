@@ -96,7 +96,7 @@ export class PersonService {
 
         try {
 
-            const user = await this.prismaService.user.findUnique({ where: { person_id: data.id }});
+            const user = data.user;
             const producer = data.producer;
             const profiles = data.profiles;
 
@@ -129,28 +129,22 @@ export class PersonService {
                 }
 
                 const newUser = await this._userService.create(user, person);
+
+                await Promise.all(
+                    profiles.map(async (p: any) => {
+                        await this.prismaService.profileUser.create({
+                            data: {
+                                profile_id: p,
+                                user_id: newUser.id
+                            }
+                        })
+                    })
+                )
             }
 
             if (data.isProducer) {
                 const newProducer = await this._producerService.create(producer, person.id);
             }
-
-            await this.prismaService.profileUser.deleteMany({
-                where: {
-                    user_id: user.id
-                }
-            })
-
-            await Promise.all(
-                profiles.map(async (p: any) => {
-                    await this.prismaService.profileUser.create({
-                        data: {
-                            profile_id: p,
-                            user_id: user.id
-                        }
-                    })
-                })
-            )
 
 
             await this._logService.log({
@@ -192,7 +186,7 @@ export class PersonService {
                 isProducer: true,
                 isUser: true,
                 sysAdmin: true,
-                
+
                 User: {
                     select: {
                         id: true,
@@ -218,7 +212,7 @@ export class PersonService {
 
     async update(data: PersonCreateDTO, user_id: string) {
 
-        const user = await this.prismaService.user.findUnique({ where: { person_id: data.id }});
+        const user = await this.prismaService.user.findUnique({ where: { person_id: data.id } });
         const producer = data.producer;
         const profiles = data.profiles;
 
@@ -258,8 +252,44 @@ export class PersonService {
                         isActive: user.isActive
                     }
                 })
+
+                await this.prismaService.$transaction([
+                    this.prismaService.profileUser.deleteMany({
+                        where: {
+                            user_id: updateUser.id,
+                            profile_id: { notIn: profiles }
+                        }
+                    }),
+
+                    this.prismaService.profileUser.createMany({
+                        data: profiles.map((p: string) => ({
+                            user_id: updateUser.id,
+                            profile_id: p
+                        })),
+                        skipDuplicates: true
+                    })
+                ]);
+
             } else {
                 const newUser = await this._userService.create(user, data);
+
+                await this.prismaService.$transaction([
+                    this.prismaService.profileUser.deleteMany({
+                        where: {
+                            user_id: newUser.id,
+                            profile_id: { notIn: profiles }
+                        }
+                    }),
+
+                    this.prismaService.profileUser.createMany({
+                        data: profiles.map((p: string) => ({
+                            user_id: newUser.id,
+                            profile_id: p
+                        })),
+                        skipDuplicates: true
+                    })
+                ]);
+
             }
         }
 
@@ -285,23 +315,6 @@ export class PersonService {
                 const newProducer = await this._producerService.create(producer, person.id);
             }
         }
-
-        await this.prismaService.profileUser.deleteMany({
-            where: {
-                user_id: user.id
-            }
-        })
-
-        await Promise.all(
-            profiles.map( async(p: any) => {
-                await this.prismaService.profileUser.create({
-                    data: {
-                        profile_id: p,
-                        user_id: user.id
-                    }
-                })
-            })
-        )
 
         await this._logService.log({
             user_id: user_id,
