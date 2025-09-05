@@ -42,6 +42,7 @@ export class RegisterService {
                     user_id: user_id,
                     producer_id: data.producer?.Producer?.id,
                     field: data.field,
+                    batch: data.batch,
                     entry_at: data.entry_at,
                     observation: data.observation
                 }
@@ -49,40 +50,40 @@ export class RegisterService {
 
             const promises = products.map(async (product: any) => {
 
-                const newVolumes = product?.volumes?.map(async (volume: any) => {
+                await Promise.all(
+                    product?.volumes?.map(async (volume: any) => {
 
-                    await this.prismaService.volume.create({
-                        data: {
-                            entry_id: newEntry.id,
-                            product_id: product.id,
-                            product_name: product.name,
-                            amount: volume.amount,
-                            weight: volume.weight,
-                            size: volume.size,
-                            type: volume.type,
-                            volume: volume.material.volume,
-                            material_id: volume.material.id,
-                            location_id: volume.location.id,
-                        }
+                        await this.prismaService.volume.create({
+                            data: {
+                                entry_id: newEntry.id,
+                                product_id: product.id,
+                                product_name: product.name,
+                                amount: volume.amount,
+                                weight: volume.weight,
+                                size: volume.size,
+                                type: volume.type,
+                                volume: volume.material.volume,
+                                material_id: volume.material.id,
+                                location_id: volume.location.id,
+                            }
+                        })
+
+                        await this.prismaService.volumeEnter.create({
+                            data: {
+                                entry_id: newEntry.id,
+                                product_id: product.id,
+                                product_name: product.name,
+                                amount: volume.amount,
+                                weight: volume.weight,
+                                size: volume.size,
+                                type: volume.type,
+                                volume: volume.material.volume,
+                                material_id: volume.material.id,
+                                location_id: volume.location.id,
+                            }
+                        })
                     })
-
-                    await this.prismaService.volumeEnter.create({
-                        data: {
-                            entry_id: newEntry.id,
-                            product_id: product.id,
-                            product_name: product.name,
-                            amount: volume.amount,
-                            weight: volume.weight,
-                            size: volume.size,
-                            type: volume.type,
-                            volume: volume.material.volume,
-                            material_id: volume.material.id,
-                            location_id: volume.location.id,
-                        }
-                    })
-                })
-
-                await Promise.all(newVolumes);
+                )
 
             })
 
@@ -234,6 +235,7 @@ export class RegisterService {
                         id: true,
                         created_at: true,
                         field: true,
+                        batch: true,
                         entry_at: true,
                         observation: true,
                         Producer: {
@@ -279,6 +281,8 @@ export class RegisterService {
                                 entry_id: true,
                                 Entry: {
                                     select: {
+                                        batch: true,
+                                        field: true,
                                         Register: true,
                                         Producer: {
                                             select: {
@@ -296,6 +300,7 @@ export class RegisterService {
                                 type: true,
                                 volume: true,
                                 Location: true,
+                                undo_location_id: true
                             },
                             where: {
                                 deleted_at: null
@@ -343,6 +348,8 @@ export class RegisterService {
                                                 Person: true
                                             }
                                         },
+                                        batch: true,
+                                        field: true
                                     }
                                 },
                                 Product: true,
@@ -424,6 +431,8 @@ export class RegisterService {
                         entry_id: true,
                         Entry: {
                             select: {
+                                batch: true,
+                                field: true,
                                 Register: true,
                                 User: {
                                     select: {
@@ -448,7 +457,8 @@ export class RegisterService {
                         Material: true,
                         created_at: true,
                         Product: true,
-                        product_name: true
+                        product_name: true,
+                        undo_location_id: true
                     },
                     where: {
                         deleted_at: null

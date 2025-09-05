@@ -42,7 +42,7 @@ export class VolumeService {
                 },
                 product_id: true,
                 Product: {
-                    select:{
+                    select: {
                         name: true,
                         isActive: true,
                         ProductSize: true,
@@ -67,6 +67,7 @@ export class VolumeService {
                 product_name: true,
                 created_at: true,
                 updated_at: true,
+                undo_location_id: true
             },
         });
 
@@ -82,11 +83,12 @@ export class VolumeService {
 
         try {
             const current_volume: any = await this.detail({ id: data.current_volume.id })
-
             const volumes = data.new_volumes;
-            const remaining = current_volume.weight- data.drawn_weight;
+            const remaining = current_volume.weight - data.drawn_weight;
             const date = current_volume.updated_at.toISOString();
+            const undo_location = current_volume.Location.id;
             let remove: string | null = '';
+            let delete_time: any = '';
 
             if (date !== String(data.updated_at)) {
                 throw new NotFoundException('Os dados deste volumes estão desatualizados')
@@ -98,8 +100,10 @@ export class VolumeService {
 
             if (remaining === 0) {
                 remove = null;
+                delete_time = new Date()
             } else {
-                remove = current_volume.location_id
+                remove = current_volume.location_id;
+                delete_time = null
             }
 
             const update = await this.prismaService.volume.update({
@@ -108,7 +112,8 @@ export class VolumeService {
                 },
                 data: {
                     weight: remaining,
-                    location_id: remove
+                    location_id: remove,
+                    deleted_at: delete_time
                 }
             })
 
@@ -121,7 +126,7 @@ export class VolumeService {
                     generated_history: '',
                     user_id: user_id
                 }
-    
+
                 await this.log(log)
 
                 const promises = volumes.map(async (vol) => {
@@ -130,7 +135,7 @@ export class VolumeService {
                     const new_location = await this.prismaService.location.findUnique({ where: { id: vol?.location_id } });
                     let volume = 0;
 
-                    if(vol.single) {
+                    if (vol.single) {
                         volume = vol.volume;
                         vol.material_id = null;
                     } else {
@@ -165,7 +170,7 @@ export class VolumeService {
                                     generated_history: '',
                                     user_id: user_id
                                 }
-                    
+
                                 await this.log(log)
                             })
 
@@ -193,7 +198,8 @@ export class VolumeService {
                                     transformed: true,
                                     exited: true,
                                     product_name: current_volume.product_name,
-                                    exit_id: vol.exit_id
+                                    exit_id: vol.exit_id,
+                                    undo_location_id: undo_location,
                                 }
                             }).then(async () => {
 
@@ -204,7 +210,7 @@ export class VolumeService {
                                     generated_history: '',
                                     user_id: user_id
                                 }
-                    
+
                                 await this.log(log)
                             })
 
@@ -280,7 +286,7 @@ export class VolumeService {
                 exit_id: null
             }
         })
-        
+
         const log = {
             entry_id: volume.entry_id,
             origin_history: `Retirou um volume da saída S${volume.exit_id}`,
@@ -312,8 +318,50 @@ export class VolumeService {
                 message: 'Volume excluído com sucesso'
             }
         }
-        catch(error) {
+        catch (error) {
             throw new ConflictException(error.message)
+        }
+    }
+
+    async undoVolume(data: { volume_id: string }) {
+
+        try {
+            const volume = await this.prismaService.volume.findUnique({
+                where: {
+                    id: data.volume_id
+                }
+            })
+
+            const location = await this.prismaService.location.findUnique({
+                where: {
+                    id: volume.undo_location_id
+                }
+            });
+
+            if (!location) {
+                throw new NotFoundException('Palete anterior não contrado')
+            }
+
+            const updateVolue = await this.prismaService.volume.update({
+                where: {
+                    id: data.volume_id
+                },
+                data: {
+                    location_id: volume.undo_location_id,
+                    undo_location_id: null,
+                    exited: false,
+                }
+                
+            })
+
+            if(updateVolue) {
+                return {
+                    message: `Volume retornado para ${location.name} com sucesso`
+                }
+            }
+        }
+        catch (err) {
+            throw new NotFoundException('Falha ao retornar volume')
         }
     }
 }

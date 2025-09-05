@@ -1,4 +1,4 @@
-import {  Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/infra/database/prisma.service';
 import { AuthDTO } from './dto/auth.dto';
@@ -9,6 +9,8 @@ import { MailService } from 'src/external/mailer/mail.service';
 import { UserSetPasswordDTO } from './dto/user-set-password';
 import { ValidateToken } from './dto/validate-token.dto';
 import { PersonCreateDTO } from '../person/dto/person-create.dto';
+import { ProfileCreateDTO } from './dto/profile-create.dto';
+import { ProfileUpdateDTO } from './dto/profile-update.dto';
 
 
 @Injectable()
@@ -35,7 +37,7 @@ export class UserService {
         const email = data.email;
 
         const user = await this.prismaService.user.findUnique({
-            where: { user:  email},
+            where: { user: email },
             select: {
                 id: true,
                 user: true,
@@ -230,6 +232,133 @@ export class UserService {
             return response;
         } catch (error) {
             throw new UnauthorizedException(error.message);
+        }
+    }
+
+    async listProfile() {
+
+        const profiles = await this.prismaService.profile.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        return profiles
+    }
+
+    async createProfile(data: ProfileCreateDTO) {
+
+        try {
+
+            const profile = await this.prismaService.profile.create({
+                data: {
+                    name: data.name
+                }
+            })
+
+            return profile
+        }
+        catch (err) {
+            throw new Error('Falha ao criar perfil')
+        }
+    }
+
+    async detailProfile(id: string) {
+
+        const profile = await this.prismaService.profile.findUnique({
+            where: {
+                id: id
+            },
+            include: {
+                ProfilePermission: true
+            }
+        });
+
+        return profile;
+    }
+
+    async updateProfile(data: ProfileUpdateDTO) {
+        const { profile_id, permissions, name } = data;
+
+        try {
+            await this.prismaService.$transaction(async (prisma) => {
+                await prisma.profile.update({
+                    where: { id: profile_id },
+                    data: { name }
+                });
+
+                await prisma.profilePermission.deleteMany({
+                    where: { profile_id }
+                });
+
+                if (permissions && permissions.length > 0) {
+                    await prisma.profilePermission.createMany({
+                        data: permissions.map((p) => ({
+                            profile_id,
+                            permission: p
+                        })),
+                        skipDuplicates: true 
+                    });
+                }
+            });
+
+            return {
+                message: 'Permissão atualizada com sucesso'
+            };
+        } catch (err) {
+            console.error(err);
+            throw new Error('Falha ao atualizar perfil');
+        }
+    }
+
+
+    async getPermission(user_id: string) {
+
+        const allPermissions: any[] = [];
+
+        const profiles = await this.prismaService.profileUser.findMany({
+            where: {
+                user_id: user_id
+            },
+        });
+
+        await Promise.all(
+            profiles.map(async (p: any) => {
+                const permissions = await this.prismaService.profilePermission.findMany({
+                    where: { profile_id: p.profile_id }
+                });
+
+                allPermissions.push(...permissions.map((item: any) => item.permission));
+            })
+        );
+
+        return allPermissions
+    }
+
+    async checkPermission(permission_id: string, user_id: string): Promise<{ pass: boolean }> {
+        try {
+            const profileUsers = await this.prismaService.profileUser.findMany({
+                where: { user_id },
+                select: { profile_id: true }
+            });
+
+            const profileIds = profileUsers.map(pu => pu.profile_id);
+
+            if (profileIds.length === 0) {
+                return { pass: false };
+            }
+
+            const permission = await this.prismaService.profilePermission.findFirst({
+                where: {
+                    profile_id: { in: profileIds },
+                    permission: permission_id
+                }
+            });
+
+            return { pass: !!permission };
+        } catch (err) {
+            console.error(err);
+            return { pass: false };
         }
     }
 

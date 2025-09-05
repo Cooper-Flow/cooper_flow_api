@@ -108,6 +108,8 @@ export class LocationService {
                         entry_id: true,
                         Entry: {
                             select: {
+                                batch: true,
+                                field: true,
                                 Register: true,
                                 observation: true,
                                 Producer: {
@@ -133,6 +135,7 @@ export class LocationService {
                         size: true,
                         type: true,
                         volume: true,
+                        weight: true
                     },
                     where: {
                         deleted_at: null

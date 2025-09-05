@@ -12,6 +12,10 @@ export class EntryCreateDTO {
 
     @IsOptional()
     @IsString()
+    batch: string;
+
+    @IsOptional()
+    @IsString()
     observation: string;
 
     @IsNotEmpty()

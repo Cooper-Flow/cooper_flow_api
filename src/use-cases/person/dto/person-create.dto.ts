@@ -58,4 +58,7 @@ export class PersonCreateDTO {
 
     @IsOptional()
     producer: any
+
+    @IsOptional()
+    profiles: any
 }

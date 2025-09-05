@@ -33,7 +33,7 @@ export class PersonService {
         const page = params.page ? +params.page : 1;
         const perPage = params.pageSize ? +params.pageSize : 10;
 
-        
+
         const offset = perPage * (page - 1);
 
         const isUser = await this.booleanHandlerService.convert(params.isUser);
@@ -96,8 +96,9 @@ export class PersonService {
 
         try {
 
-            const user = data.user;
+            const user = await this.prismaService.user.findUnique({ where: { person_id: data.id }});
             const producer = data.producer;
+            const profiles = data.profiles;
 
             const person: any = await this.prismaService.person.create({
                 data: {
@@ -133,6 +134,23 @@ export class PersonService {
             if (data.isProducer) {
                 const newProducer = await this._producerService.create(producer, person.id);
             }
+
+            await this.prismaService.profileUser.deleteMany({
+                where: {
+                    user_id: user.id
+                }
+            })
+
+            await Promise.all(
+                profiles.map(async (p: any) => {
+                    await this.prismaService.profileUser.create({
+                        data: {
+                            profile_id: p,
+                            user_id: user.id
+                        }
+                    })
+                })
+            )
 
 
             await this._logService.log({
@@ -174,8 +192,17 @@ export class PersonService {
                 isProducer: true,
                 isUser: true,
                 sysAdmin: true,
-
-                User: true,
+                
+                User: {
+                    select: {
+                        id: true,
+                        isActive: true,
+                        user: true,
+                        Person: true,
+                        created_at: true,
+                        ProfileUser: true
+                    },
+                },
                 Customer: true,
                 Producer: true
             },
@@ -191,8 +218,9 @@ export class PersonService {
 
     async update(data: PersonCreateDTO, user_id: string) {
 
-        const user = data.user;
+        const user = await this.prismaService.user.findUnique({ where: { person_id: data.id }});
         const producer = data.producer;
+        const profiles = data.profiles;
 
         const person = await this.prismaService.person.update({
             where: {
@@ -221,7 +249,7 @@ export class PersonService {
                 }
             })
 
-            if(currentUser) {
+            if (currentUser) {
                 const updateUser = await this.prismaService.user.update({
                     where: {
                         person_id: person.id
@@ -236,14 +264,14 @@ export class PersonService {
         }
 
         if (data.isProducer) {
-            
+
             const currentProducer = await this.prismaService.producer.findUnique({
                 where: {
                     person_id: person.id
                 }
             })
 
-            if(currentProducer) {
+            if (currentProducer) {
                 const updateProducer = await this.prismaService.producer.update({
                     where: {
                         person_id: person.id
@@ -258,6 +286,22 @@ export class PersonService {
             }
         }
 
+        await this.prismaService.profileUser.deleteMany({
+            where: {
+                user_id: user.id
+            }
+        })
+
+        await Promise.all(
+            profiles.map( async(p: any) => {
+                await this.prismaService.profileUser.create({
+                    data: {
+                        profile_id: p,
+                        user_id: user.id
+                    }
+                })
+            })
+        )
 
         await this._logService.log({
             user_id: user_id,

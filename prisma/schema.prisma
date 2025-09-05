@@ -22,12 +22,15 @@ model User {
   created_at DateTime @default(now()) @db.Timestamp
   updated_at DateTime @updatedAt @db.Timestamp
 
-  LogSystem LogSystem[]
-  NewUser   NewUser?
-  Entry     Entry[]
-  Exit      Exit[]
-  Transform Transform[]
-  VolumeLog   VolumeLog[]
+  LogSystem          LogSystem[]
+  NewUser            NewUser?
+  Entry              Entry[]
+  Exit               Exit[]
+  Transform          Transform[]
+  VolumeLog          VolumeLog[]
+  Pricing            Pricing[]
+  PricingObservation PricingObservation[]
+  ProfileUser ProfileUser[]
 
   @@map("users")
 }
@@ -236,6 +239,7 @@ model Entry {
   Producer    Producer @relation(fields: [producer_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   field    String?
+  batch    String?
   entry_at DateTime @default(now()) @db.Timestamp
 
   observation String? @db.Text()
@@ -270,7 +274,7 @@ model Exit {
 
   status String
 
-  invoice    String?  @db.Text()
+  invoice String? @db.Text()
 
   created_at DateTime @default(now()) @db.Timestamp
   updated_at DateTime @updatedAt @db.Timestamp
@@ -311,8 +315,8 @@ model Volume {
   product_name String
   size         String
   type         String
-  amount       Float    @default(0)
-  weight       Float    @default(0)
+  amount       Float  @default(0)
+  weight       Float  @default(0)
   volume       Float  @default(0)
 
   transformed Boolean @default(false)
@@ -324,13 +328,16 @@ model Volume {
   location_id String?
   Location    Location? @relation(fields: [location_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
+  undo_location_id String?
+
   exit_id Int?
   Exit    Exit? @relation(fields: [exit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  created_at DateTime @default(now()) @db.Timestamp
-  updated_at DateTime @updatedAt @db.Timestamp
+  created_at DateTime  @default(now()) @db.Timestamp
+  updated_at DateTime  @updatedAt @db.Timestamp
   deleted_at DateTime?
 
+  PricingItem PricingItem[]
 
   @@map("volumes")
 }
@@ -341,10 +348,10 @@ model VolumeLog {
   entry_id Int
   Entry    Entry @relation(fields: [entry_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  origin_history      String? @db.Text()
-  dropped_amount      Float  @default(0)
-  dropped_weight      Float  @default(0)
-  generated_history   String? @db.Text()
+  origin_history    String? @db.Text()
+  dropped_amount    Float   @default(0)
+  dropped_weight    Float   @default(0)
+  generated_history String? @db.Text()
 
   user_id String
   User    User   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -367,8 +374,8 @@ model VolumeEnter {
   product_name String
   size         String
   type         String
-  amount       Float    @default(0)
-  weight       Float    @default(0)
+  amount       Float  @default(0)
+  weight       Float  @default(0)
   volume       Float  @default(0)
 
   material_id String?
@@ -424,4 +431,111 @@ model SystemParam {
   updated_at DateTime @updatedAt @db.Timestamp
 
   @@map("system_params")
+}
+
+model Pricing {
+  id Int @id @unique @default(autoincrement())
+
+  creator_id String
+  User       User   @relation(fields: [creator_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp
+  updated_at DateTime @updatedAt @db.Timestamp
+
+  status String
+
+  PricingItem        PricingItem[]
+  PricingObservation PricingObservation[]
+  PricingAdditional  PricingAdditional[]
+
+  @@map("prices")
+}
+
+model PricingItem {
+  id String @id @unique @default(uuid())
+
+  price    Float  @default(0)
+  currency String @default("R$")
+
+  volume_id String
+  Volume    Volume @relation(fields: [volume_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  pricing_id Int
+  Pricing    Pricing @relation(fields: [pricing_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp
+  updated_at DateTime @updatedAt @db.Timestamp
+
+  @@map("pricing_items")
+}
+
+model PricingObservation {
+  id String @id @unique @default(uuid())
+
+  description String? @db.VarChar(255)
+
+  creator_id String
+  User       User   @relation(fields: [creator_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  pricing_id Int
+  Pricing    Pricing @relation(fields: [pricing_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp
+  updated_at DateTime @updatedAt @db.Timestamp
+
+  @@map("pricing_observations")
+}
+
+model PricingAdditional {
+  id String @id @unique @default(uuid())
+
+  description String? @db.VarChar(255)
+  type        String
+  price       Float   @default(0)
+  currency    String  @default("R$")
+
+  pricing_id Int
+  Pricing    Pricing @relation(fields: [pricing_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamp
+  updated_at DateTime @updatedAt @db.Timestamp
+
+  @@map("pricing_additionals")
+}
+
+model Profile {
+  id String @id @unique @default(uuid())
+
+  name String
+
+  created_at DateTime @default(now()) @db.Timestamp
+  updated_at DateTime @updatedAt @db.Timestamp
+
+  ProfilePermission ProfilePermission[]
+  ProfileUser ProfileUser[]
+
+  @@map("profiles")
+}
+
+model ProfilePermission {
+
+  permission String
+
+  profile_id String
+  Profile    Profile @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([profile_id, permission])
+  @@map("profile_permissions")
+}
+
+model ProfileUser {
+
+  profile_id String
+  Profile    Profile @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  user_id String
+  User       User   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([profile_id, user_id])
+  @@map("profile_users")
 }

@@ -16,6 +16,7 @@ import { PersonModule } from './use-cases/person/person.module';
 import { RegisterModule } from './use-cases/register/register.module';
 import { SystemModule } from './use-cases/system/system.module';
 import { VolumeModule } from './use-cases/volume/volume.module';
+import { PricingModule } from './use-cases/pricing/pricing.module';
 @Module({
   imports: [
     AuthModule,
@@ -44,7 +45,8 @@ import { VolumeModule } from './use-cases/volume/volume.module';
     PersonModule,
     RegisterModule,
     SystemModule,
-    VolumeModule
+    VolumeModule,
+    PricingModule
   ],
   controllers: [],
   providers: [MailService],

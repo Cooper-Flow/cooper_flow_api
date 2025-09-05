@@ -30,4 +30,9 @@ export class VolumeController {
     async delete(@Param() data: { id: string }) {
         return await this.volumeService.delete(data.id)
     }
+
+    @Post('/undo')
+    async undoVolume(@Body() data: { volume_id: string },  @User() user_id: string) {
+        return await this.volumeService.undoVolume(data)
+    }
 }
