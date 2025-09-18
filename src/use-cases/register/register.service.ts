@@ -10,6 +10,7 @@ import { NotFoundError } from 'rxjs';
 import { ExitStatus } from 'src/shared/constants/exit-types.enum';
 import { ExitCreateDTO } from './dto/exit.create.dto';
 import { VolumeService } from '../volume/volume.service';
+import { ExitCloseDTO } from './dto/exit-close.dto';
 
 @Injectable()
 export class RegisterService {
@@ -470,7 +471,9 @@ export class RegisterService {
         return exit;
     }
 
-    async closeExit(data: { exit_id: number, date: string, invoice?: string }, user_id: string) {
+    async closeExit(data: ExitCloseDTO, user_id: string) {
+
+        const volumes = data.volumes;
 
         const exit = await this.prismaService.exit.findUnique({
             where: {
@@ -483,7 +486,7 @@ export class RegisterService {
         })
 
 
-        const update = await this.prismaService.exit.update({
+        const updateExit = await this.prismaService.exit.update({
             where: {
                 id: data.exit_id
             },
@@ -494,21 +497,31 @@ export class RegisterService {
             }
         })
 
-        const volumes = exit.Volume;
 
         const logs = volumes.map(async (vol) => {
 
+            const update = await this.prismaService.volume.update({
+                where:{
+                    id: vol
+                },
+                data: {
+                    location_id: null,
+                    exited: true,
+                    exit_id: updateExit.id,
+                }
+            })
+
             const material = await this.prismaService.material.findUnique({
                 where: {
-                    id: vol.material_id
+                    id: update.material_id
                 }
             })
 
             const log = {
-                entry_id: vol.entry_id,
+                entry_id: update.entry_id,
                 origin_history: `Volume incluso na saída S${data.exit_id}`,
                 dropped_weight: 0,
-                generated_history: `${vol.product_name} • ${vol.type} ${vol.size} (⇧ ${vol.amount} ${vol.amount > 1 ? 'unidades' : 'unidade'} • ${vol.volume}kg) • ${material.name};`,
+                generated_history: `${update.product_name} • ${update.type} ${update.size} (⇧ ${update.amount} ${update.amount > 1 ? 'unidades' : 'unidade'} • ${update.volume}kg) • ${material.name};`,
                 user_id: user_id
             }
 

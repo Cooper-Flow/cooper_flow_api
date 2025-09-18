@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { LocationCreateDTO } from './dto/location-create.dto';
 import { LocationDetailDTO } from './dto/location-detail.dto';
 import { TrackDTO } from './dto/track.dto';
+import { LocationChangeLocationDTO } from './dto/location-change-sector.dto';
 
 @Injectable()
 export class LocationService {
@@ -140,7 +141,7 @@ export class LocationService {
                     where: {
                         deleted_at: null
                     }
-                } 
+                }
             },
         });
 
@@ -191,7 +192,7 @@ export class LocationService {
             }
         });
 
-        return{
+        return {
             data: sectors
         }
     }
@@ -212,13 +213,21 @@ export class LocationService {
     async getTrack(params: TrackDTO) {
 
         const sector_id = params.sector_id;
+        const filter = params.filter;
 
         const filterConditions = {
             isActive: true
         };
-        
+
         if (sector_id) {
             filterConditions['sector_id'] = String(sector_id);
+        }
+
+        if (filter) {
+            filterConditions['name'] = {
+                contains: filter,
+                mode: 'insensitive'
+            };
         }
 
         const locations = await this.prismaService.location.findMany({
@@ -229,7 +238,7 @@ export class LocationService {
                 isActive: true,
                 description: true,
                 sector_id: true,
-
+                Sector: true,
                 Volume: {
                     select: {
                         id: true,
@@ -265,5 +274,21 @@ export class LocationService {
         })
 
         return locations;
+    }
+
+    async changeSector(data: LocationChangeLocationDTO, user_id: string) {
+        
+        await this.prismaService.location.update({
+            where: {
+                id: data.location_id
+            },
+            data: {
+                sector_id: data.new_sector_id
+            }
+        })
+        
+        return {
+            message: 'Localização do palete atualizado com sucesso.'
+        }
     }
 }

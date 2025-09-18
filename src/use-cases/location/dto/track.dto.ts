@@ -9,4 +9,8 @@ export class TrackDTO {
     @IsNotEmpty()
     @IsString()
     sector_id: string;
+
+    @IsOptional()
+    @IsString()
+    filter: string;
 }

@@ -5,6 +5,7 @@ import { EntryCreateDTO } from './dto/entry-create.dto';
 import { RegisterPaginateDTO } from './dto/register-list.dto';
 import { RegisterDetailDTO } from './dto/register-detail.dto';
 import { ExitCreateDTO } from './dto/exit.create.dto';
+import { ExitCloseDTO } from './dto/exit-close.dto';
 
 @Controller('register')
 export class RegisterController {
@@ -24,7 +25,7 @@ export class RegisterController {
     }
 
     @Post('/exit/close')
-    async closeExit(@Body() data: { exit_id: number,  date: any },  @User() user_id: string) {
+    async closeExit(@Body() data: ExitCloseDTO,  @User() user_id: string) {
         return await this.registerService.closeExit(data, user_id)
     }
 

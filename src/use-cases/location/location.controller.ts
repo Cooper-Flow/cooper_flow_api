@@ -5,6 +5,7 @@ import { LocationCreateDTO } from './dto/location-create.dto';
 import { LocationDetailDTO } from './dto/location-detail.dto';
 import { LocationPaginateDTO } from './dto/location-paginate.dto';
 import { TrackDTO } from './dto/track.dto';
+import { LocationChangeLocationDTO } from './dto/location-change-sector.dto';
 
 @Controller('location')
 export class LocationController {
@@ -46,5 +47,10 @@ export class LocationController {
     @Get('/track/')
     async getTrack(@Query() param: TrackDTO) {
         return await this.locationService.getTrack(param)
+    }
+
+    @Post('/change-sector')
+    async changeSector(@Body() data: LocationChangeLocationDTO,  @User() user_id: string) {
+        return await this.locationService.changeSector(data, user_id)
     }
 }
