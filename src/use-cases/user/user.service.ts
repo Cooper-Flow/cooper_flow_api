@@ -297,7 +297,7 @@ export class UserService {
                             profile_id,
                             permission: p
                         })),
-                        skipDuplicates: true 
+                        skipDuplicates: true
                     });
                 }
             });
@@ -315,6 +315,21 @@ export class UserService {
     async getPermission(user_id: string) {
 
         const allPermissions: any[] = [];
+        const user = await this.prismaService.user.findFirst({
+            where: {
+                id: user_id
+            },
+            select: {
+                Person: true
+            }
+        })
+
+        if (user.Person.sysAdmin) {
+            return {
+                permissions: allPermissions,
+                access: true
+            }
+        }
 
         const profiles = await this.prismaService.profileUser.findMany({
             where: {
@@ -332,11 +347,28 @@ export class UserService {
             })
         );
 
-        return allPermissions
+        return {
+            permissions: allPermissions,
+            authorized: false
+        }
     }
 
     async checkPermission(permission_id: string, user_id: string): Promise<{ pass: boolean }> {
         try {
+
+            const user = await this.prismaService.user.findFirst({
+                where: {
+                    id: user_id
+                },
+                select: {
+                    Person: true
+                }
+            })
+
+            if (user.Person.sysAdmin) {
+                return { pass: true };
+            }
+
             const profileUsers = await this.prismaService.profileUser.findMany({
                 where: { user_id },
                 select: { profile_id: true }

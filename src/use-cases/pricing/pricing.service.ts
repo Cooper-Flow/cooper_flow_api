@@ -26,6 +26,16 @@ export class PricingService {
         const filter = params.filter ?? RegisterType.entry;
         const batch = params.batch ?? null;
 
+        const order: Prisma.SortOrder =
+            (params.order as unknown as Prisma.SortOrder) || 'desc';
+        const page = params.page ? +params.page : 1;
+        const perPage = params.pageSize ? +params.pageSize : 10;
+
+        const total = await this.prismaService.register.count();
+
+        const totalPages = Math.ceil(total / perPage);
+        const offset = perPage * (page - 1);
+
         switch (filter) {
             case RegisterType.entry: {
                 const enters = await this.prismaService.entry.findMany({
@@ -87,13 +97,18 @@ export class PricingService {
                             },
                         }
                     },
+                    take: perPage,
+                    skip: offset,
                     orderBy: {
-                        created_at: 'desc'
-                    }
+                        created_at: order,
+                    },
                 })
 
                 const response = {
-                    enters: enters
+                    enters: enters,
+                    total,
+                    page,
+                    totalPages,
                 }
 
                 return response;
@@ -183,7 +198,7 @@ export class PricingService {
 
             if (newPricing) {
                 await Promise.all(
-                    volumes.map(async  v => {
+                    volumes.map(async v => {
                         await this.prismaService.pricingItem.create({
                             data: {
                                 price: 0,

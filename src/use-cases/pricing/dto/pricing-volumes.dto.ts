@@ -12,4 +12,16 @@ export class PricingVolumesDTO {
     @IsOptional()
     @IsString()
     filter: string;
+
+    @IsNotEmpty()
+    @IsNumber()
+    page: number;
+
+    @IsNotEmpty()
+    @IsNumber()
+    pageSize: number;
+
+    @IsNotEmpty()
+    @IsString()
+    order: string;
 }
