@@ -35,4 +35,14 @@ export class VolumeController {
     async undoVolume(@Body() data: { volume_id: string },  @User() user_id: string) {
         return await this.volumeService.undoVolume(data)
     }
+
+    @Post('/group')
+    async groupVolume(@Body() data: { volumes: [],location_id: string },  @User() user_id: string) {
+        return await this.volumeService.groupVolume(data)
+    }
+
+    @Post('/remove-group')
+    async removeGroupVolume(@Body() data: { volume_id: string },  @User() user_id: string) {
+        return await this.volumeService.removeGroupVolume(data)
+    }
 }

@@ -30,7 +30,7 @@ model User {
   VolumeLog          VolumeLog[]
   Pricing            Pricing[]
   PricingObservation PricingObservation[]
-  ProfileUser ProfileUser[]
+  ProfileUser        ProfileUser[]
 
   @@map("users")
 }
@@ -118,6 +118,7 @@ model NewUser {
 model Product {
   id       String  @id @unique @default(uuid())
   name     String  @db.VarChar(255)
+  color    String? @db.VarChar(255)
   isActive Boolean @default(true)
 
   created_at DateTime @default(now()) @db.Timestamp
@@ -168,6 +169,7 @@ model Location {
 
   Volume      Volume[]
   VolumeEnter VolumeEnter[]
+  VolumeGroup VolumeGroup[]
 
   @@map("locations")
 }
@@ -333,6 +335,9 @@ model Volume {
   exit_id Int?
   Exit    Exit? @relation(fields: [exit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
+  volume_group_id String?
+  VolumeGroup    VolumeGroup? @relation(fields: [volume_group_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
   created_at DateTime  @default(now()) @db.Timestamp
   updated_at DateTime  @updatedAt @db.Timestamp
   deleted_at DateTime?
@@ -340,6 +345,17 @@ model Volume {
   PricingItem PricingItem[]
 
   @@map("volumes")
+}
+
+model VolumeGroup {
+  id String @id @unique @default(uuid())
+
+  location_id String?
+  Location    Location? @relation(fields: [location_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  Volume Volume[]
+
+  @@map("volume_groups")
 }
 
 model VolumeLog {
@@ -512,13 +528,12 @@ model Profile {
   updated_at DateTime @updatedAt @db.Timestamp
 
   ProfilePermission ProfilePermission[]
-  ProfileUser ProfileUser[]
+  ProfileUser       ProfileUser[]
 
   @@map("profiles")
 }
 
 model ProfilePermission {
-
   permission String
 
   profile_id String
@@ -529,12 +544,11 @@ model ProfilePermission {
 }
 
 model ProfileUser {
-
   profile_id String
   Profile    Profile @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   user_id String
-  User       User   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  User    User   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@id([profile_id, user_id])
   @@map("profile_users")

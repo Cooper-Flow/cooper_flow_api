@@ -6,12 +6,14 @@ import { LocationCreateDTO } from './dto/location-create.dto';
 import { LocationDetailDTO } from './dto/location-detail.dto';
 import { TrackDTO } from './dto/track.dto';
 import { LocationChangeLocationDTO } from './dto/location-change-sector.dto';
+import { CalcHandlerService } from 'src/shared/handlers/calc.handler';
 
 @Injectable()
 export class LocationService {
 
     constructor(
-        public prismaService: PrismaService
+        public prismaService: PrismaService,
+        public calcHandlerService: CalcHandlerService
     ) { }
 
     async paginate(params: LocationPaginateDTO) {
@@ -56,6 +58,7 @@ export class LocationService {
             },
         });
 
+
         const response = {
             data: locations,
             total,
@@ -69,6 +72,14 @@ export class LocationService {
     async create(data: LocationCreateDTO, user_id: string) {
 
         try {
+            const exist = await this.prismaService.location.findFirst({
+                where: {
+                    name: data.name
+                }
+            })
+
+            if (exist) throw new ConflictException('Identificação já está em uso')
+
             const location = await this.prismaService.location.create({
                 data: {
                     name: data.name,
@@ -87,7 +98,7 @@ export class LocationService {
         }
     }
 
-    async detail(data: LocationDetailDTO): Promise<LocationCreateDTO> {
+    async detail(data: LocationDetailDTO) {
         const customer = await this.prismaService.location.findUnique({
             where: {
                 id: data.id,
@@ -136,27 +147,132 @@ export class LocationService {
                         size: true,
                         type: true,
                         volume: true,
-                        weight: true
+                        weight: true,
                     },
                     where: {
+                        volume_group_id: null,
                         deleted_at: null
+                    }
+                },
+            },
+        });
+
+        const groups = await this.prismaService.volumeGroup.findMany({
+            where: {
+                location_id: data.id,
+                Volume: {
+                    some: {
+                        deleted_at: null,
+                        exited: false
                     }
                 }
             },
+            select: {
+                id: true,
+                Volume: {
+                    select: {
+                        id: true,
+                        created_at: true,
+                        entry_id: true,
+                        Entry: {
+                            select: {
+                                batch: true,
+                                field: true,
+                                Register: true,
+                                observation: true,
+                                Producer: {
+                                    select: {
+                                        Person: true
+                                    }
+                                },
+                                User: {
+                                    select: {
+                                        Person: {
+                                            select: {
+                                                name: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Product: true,
+                        Material: true,
+                        product_name: true,
+                        amount: true,
+                        size: true,
+                        type: true,
+                        volume: true,
+                        weight: true,
+                        volume_group_id: true
+                    },
+                    where: {
+                        deleted_at: null,
+                        exited: false
+                    },
+                },
+            }
+        })
+
+        const allVolumes = [
+            ...customer.Volume,
+            ...groups.flatMap(g => g.Volume)
+        ];
+
+        const totalWeight = this.calcHandlerService.totalWeight(allVolumes);
+
+        const groupsWithTotalsAndMaterials = groups.map(group => {
+            const totalWeight = group.Volume.reduce(
+                (sum, v) => sum + (Number(v.weight) || 0),
+                0
+            );
+
+            const materialsMap = new Map();
+
+            group.Volume.forEach(v => {
+                if (v.Material) {
+                    materialsMap.set(v.Material.id, v.Material);
+                }
+            });
+
+            const materials = Array.from(materialsMap.values());
+
+            return {
+                ...group,
+                totalWeight,
+                materials,
+            };
         });
 
 
         if (customer) {
-            return customer
+            return {
+                ...customer,
+                totalVolumes: allVolumes.length,
+                totalVolumeWeight: totalWeight,
+                groups: groupsWithTotalsAndMaterials
+            }
         } else {
             throw new ConflictException('Localização não encontrada')
         }
     }
 
     async update(data: LocationCreateDTO, user_id: string) {
+
+        const exist = await this.prismaService.location.findFirst({
+            where: {
+                id: {
+                    not: data.id,
+                },
+                name: data.name
+            }
+        })
+
+        if (exist) throw new ConflictException('Identificação já está em uso')
+
         const update = await this.prismaService.location.findUnique({
             where: {
-                id: user_id,
+                id: data.id,
             },
         });
 
@@ -205,6 +321,12 @@ export class LocationService {
             orderBy: {
                 name: 'asc'
             }
+        });
+
+        locations.sort((a, b) => {
+            const numA = parseInt(a.name.replace(/\D/g, ''), 10);
+            const numB = parseInt(b.name.replace(/\D/g, ''), 10);
+            return numA - numB;
         });
 
         return locations
@@ -264,20 +386,122 @@ export class LocationService {
                         volume: true,
                     },
                     where: {
-                        deleted_at: null
+                        deleted_at: null,
+                        volume_group_id: null
                     }
                 },
+                VolumeGroup: {
+                    where: {
+                        Volume: {
+                            some: {
+                                deleted_at: null,
+                                exited: false
+                            }
+                        }
+                    },
+                    select: {
+                        Volume: {
+                            select: {
+                                id: true,
+                                created_at: true,
+                                entry_id: true,
+                                Entry: {
+                                    select: {
+                                        batch: true,
+                                        field: true,
+                                        Register: true,
+                                        observation: true,
+                                        Producer: {
+                                            select: {
+                                                Person: true
+                                            }
+                                        },
+                                        User: {
+                                            select: {
+                                                Person: {
+                                                    select: {
+                                                        name: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                Product: true,
+                                Material: true,
+                                product_name: true,
+                                amount: true,
+                                size: true,
+                                type: true,
+                                volume: true,
+                                weight: true,
+                                volume_group_id: true
+                            },
+                            where: {
+                                deleted_at: null,
+                                exited: false
+                            },
+                        },
+                    },
+                }
             },
             orderBy: {
                 name: 'asc'
             }
         })
 
-        return locations;
+        const locationsWithTotalWeight = locations.map(location => {
+            const totalVolumeWeight = this.calcHandlerService.totalWeight(location.Volume);
+
+            const volumeGroups = location.VolumeGroup?.map(group => {
+
+                const groupWeight = this.calcHandlerService.totalWeight(group.Volume);
+
+                const materialsMap = new Map();
+                group.Volume.forEach(v => {
+                    if (v.Material) {
+                        materialsMap.set(v.Material.id, v.Material);
+                    }
+                });
+                const materials = Array.from(materialsMap.values());
+
+                return {
+                    ...group,
+                    groupWeight,
+                    materials,
+                };
+            }) || [];
+
+            const totalGroupWeight = volumeGroups.reduce((sum, g) => sum + g.groupWeight, 0);
+
+            const totalVolumes =
+                (location.Volume?.length ?? 0) +
+                (location.VolumeGroup?.reduce((sum, g) => sum + g.Volume.length, 0) ?? 0);
+
+            return {
+                ...location,
+                VolumeGroup: volumeGroups,
+                totalVolumeWeight,
+                totalGroupWeight,
+                totalWeight: totalVolumeWeight + totalGroupWeight,
+                totalVolumes 
+            };
+        });
+
+
+
+
+        locationsWithTotalWeight.sort((a, b) => {
+            const numA = parseInt(a.name.replace(/\D/g, ''), 10);
+            const numB = parseInt(b.name.replace(/\D/g, ''), 10);
+            return numA - numB;
+        });
+
+        return locationsWithTotalWeight;
     }
 
     async changeSector(data: LocationChangeLocationDTO, user_id: string) {
-        
+
         await this.prismaService.location.update({
             where: {
                 id: data.location_id
@@ -286,7 +510,7 @@ export class LocationService {
                 sector_id: data.new_sector_id
             }
         })
-        
+
         return {
             message: 'Localização do palete atualizado com sucesso.'
         }
