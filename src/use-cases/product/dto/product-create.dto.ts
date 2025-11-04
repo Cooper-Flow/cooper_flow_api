@@ -10,6 +10,10 @@ export class ProductCreateDTO {
     name: string;
 
     @IsNotEmpty()
+    @IsString()
+    color: string;
+
+    @IsNotEmpty()
     @IsBoolean()
     isActive: boolean;
 

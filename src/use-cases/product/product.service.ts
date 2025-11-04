@@ -44,6 +44,7 @@ export class ProductService {
             select: {
                 id: true,
                 name: true,
+                color: true,
                 isActive: true,
                 created_at: true,
                 updated_at: true,
@@ -85,6 +86,7 @@ export class ProductService {
             const product = await this.prismaService.product.create({
                 data: {
                     name: data.name,
+                    color: data.color,
                     isActive: data.isActive,
                 }
             })
@@ -139,6 +141,7 @@ export class ProductService {
             select: {
                 id: true,
                 name: true,
+                color: true,
                 isActive: true,
                 created_at: true,
                 updated_at: true,
@@ -191,6 +194,7 @@ export class ProductService {
             },
             data: {
                 name: data.name,
+                color: data.color,
                 isActive: data.isActive,
             }
         });

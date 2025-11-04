@@ -115,16 +115,23 @@ export class PricingService {
             }
             case RegisterType.exit: {
 
-                const exits = await this.prismaService.exit.findMany({
-                    where: {
-                        Volume: {
-                            some: {
-                                Entry: {
-                                    ...(producer_id && { producer_id: producer_id }),
-                                }
+                const whereExit: any = {
+                    Volume: {
+                        some: {
+                            Entry: {
+                                ...(producer_id && { producer_id: producer_id }),
                             }
                         }
-                    },
+                    }
+                }
+
+                // Total para paginação
+                const total = await this.prismaService.exit.count({
+                    where: whereExit
+                });
+
+                const exits = await this.prismaService.exit.findMany({
+                    where: whereExit,
                     include: {
                         Person: true,
                         Volume: {
@@ -154,17 +161,25 @@ export class PricingService {
                             },
                         },
                     },
+                    take: perPage,
+                    skip: offset,
                     orderBy: {
-                        created_at: 'desc'
+                        created_at: order
                     }
-                })
+                });
+
+                const totalPages = Math.ceil(total / perPage);
 
                 const response = {
-                    exits: exits
+                    exits: exits,
+                    total,
+                    page,
+                    totalPages,
                 }
 
                 return response;
             }
+
         }
 
         const exits = await this.prismaService.exit.findMany({
@@ -236,6 +251,8 @@ export class PricingService {
 
         const producer_id = params.producer_id ?? null;
 
+        let entries = []
+
         const prices = await this.prismaService.pricing.findMany({
             where: {
                 PricingItem: {
@@ -279,11 +296,41 @@ export class PricingService {
             },
         })
 
+        if (producer_id) {
+            entries = await this.prismaService.entry.findMany({
+                where: {
+                    producer_id: producer_id
+                },
+                include: {
+                    Volume: {
+                        include: {
+                            Material: true,
+                            Product: true,
+                            Location: true,
+                            Exit: true
+                        },
+                        where: {
+                            deleted_at: null,
+                            exited: true
+                        }
+                    },
+                    VolumeEnter: {
+                        include: {
+                            Material: true,
+                            Product: true,
+                            Location: true
+                        },
+                    }
+                }
+            })
+        }
+
         const response = {
             data: prices,
             total,
             page,
             totalPages,
+            entries
         };
 
         return response

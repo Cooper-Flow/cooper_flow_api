@@ -2,12 +2,14 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from 'src/infra/database/prisma.service';
 import { VolumeDetailDTO } from './dto/volume-detail.dto';
 import { VolumeTransformDTO } from './dto/volume-transform.dto';
+import { CalcHandlerService } from 'src/shared/handlers/calc.handler';
 
 @Injectable()
 export class VolumeService {
 
     constructor(
         public prismaService: PrismaService,
+        public calcHandlerService: CalcHandlerService
     ) { }
 
     async detail(data: VolumeDetailDTO): Promise<any> {
@@ -71,9 +73,13 @@ export class VolumeService {
             },
         });
 
+        const totalWeight = this.calcHandlerService.calcUnitsByWeight(volume.weight, volume.volume);
 
         if (volume) {
-            return volume
+            return {
+                ...volume,
+                totalVolumeWeight: totalWeight
+            }
         } else {
             throw new ConflictException('Volume não encontrado')
         }
@@ -342,7 +348,7 @@ export class VolumeService {
                 throw new NotFoundException('Palete anterior não contrado')
             }
 
-            const updateVolue = await this.prismaService.volume.update({
+            const updateVolume = await this.prismaService.volume.update({
                 where: {
                     id: data.volume_id
                 },
@@ -351,10 +357,10 @@ export class VolumeService {
                     undo_location_id: null,
                     exited: false,
                 }
-                
+
             })
 
-            if(updateVolue) {
+            if (updateVolume) {
                 return {
                     message: `Volume retornado para ${location.name} com sucesso`
                 }
@@ -364,4 +370,68 @@ export class VolumeService {
             throw new NotFoundException('Falha ao retornar volume')
         }
     }
+
+
+    async groupVolume(data: { volumes: [], location_id: string }) {
+
+        try {
+
+            const volumes = data.volumes;
+
+            if (volumes.length <= 1) throw new ConflictException('É necessário ao menos 2 volumes para agrupar')
+
+            await this.prismaService.$transaction(async (tx) => {
+
+
+                const newGroup = await this.prismaService.volumeGroup.create({
+                    data: {
+                        location_id: data.location_id
+                    }
+                })
+
+                await Promise.all(
+                    volumes.map(async (vol) => {
+
+                        await this.prismaService.volume.update({
+                            where: {
+                                id: vol
+                            },
+                            data: {
+                                volume_group_id: newGroup.id
+                            }
+                        })
+                    })
+                )
+
+                return {
+                    message: 'Volumes agrupados com sucesso'
+                }
+
+            })
+
+        }
+        catch (err) {
+            throw new NotFoundException('Falha ao retornar volume')
+        }
+    }
+
+    async removeGroupVolume(data: { volume_id: string }) {
+        try {
+            await this.prismaService.$transaction(async (tx) => {
+                await this.prismaService.volume.update({
+                    where: {
+                        id: data.volume_id
+                    },
+                    data: {
+                        volume_group_id: null
+                    }
+                })
+            })
+        }
+        catch (err) {
+            throw new NotFoundException('Falha ao remover grupo de volume')
+        }
+    }
+
+
 }
