@@ -394,4 +394,65 @@ export class UserService {
         }
     }
 
+    async resetPassword(data: { email: string }) {
+
+        const user = await this.prismaService.user.findUnique({
+            where: {
+                user: data.email
+            },
+            include: {
+                Person: true
+            }
+        })
+
+        if (!user) {
+            throw new NotFoundException('Usuário não encontrado');
+        }
+
+        await this.prismaService.newUser.deleteMany({
+            where: {
+                user_id: user.id
+            }
+        })
+
+        const payload = {
+            id: user.id,
+            name: user.Person.name,
+            email:  user.Person.email,
+            position:  user.Person.position,
+        };
+
+        const token = await this.jwtService.signAsync(payload, {
+            secret: jwt.create_account.secret,
+            expiresIn: jwt.create_account.expiresIn,
+        });
+
+        await this.prismaService.newUser.create({
+            data: {
+                token: token,
+                user_id: user.id,
+            },
+        });
+
+        const email = {
+            to:  user.Person.email,
+            subject: 'Redefinição de senha - CooperFlow',
+            text: `Olá ${ user.Person.name}! Este é um email para efetuar a redefinição de senha.`,
+            name:  user.Person.name,
+            token: token
+        }
+
+        await this._mailService.createAccount(email);
+
+        const response = {
+            id: user.id,
+            user: user.user,
+            createdAt: user.created_at,
+            updatedAt: user.updated_at,
+        };
+
+        return response;
+
+    }
+
 }
