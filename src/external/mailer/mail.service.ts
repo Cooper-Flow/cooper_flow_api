@@ -58,7 +58,7 @@ export class MailService {
           return response
         });
     } catch (error) {
-
+      console.log(error)
     }
 
   }

@@ -243,28 +243,31 @@ export class PricingService {
             (params.order as unknown as Prisma.SortOrder) || 'desc';
         const page = params.page ? +params.page : 1;
         const perPage = params.pageSize ? +params.pageSize : 10;
-
-        const total = await this.prismaService.pricing.count();
-
-        const totalPages = Math.ceil(total / perPage);
+        
         const offset = perPage * (page - 1);
 
         const producer_id = params.producer_id ?? null;
 
         let entries = []
 
-        const prices = await this.prismaService.pricing.findMany({
-            where: {
-                PricingItem: {
-                    some: {
-                        Volume: {
-                            Entry: {
-                                ...(producer_id && { producer_id: producer_id }),
-                            }
+        const where = {
+            PricingItem: {
+                some: {
+                    Volume: {
+                        Entry: {
+                            ...(producer_id && { producer_id: producer_id }),
                         }
                     }
                 }
-            },
+            }
+        }
+
+        const total = await this.prismaService.pricing.count();
+        const totalEntries = await this.prismaService.pricing.count({ where });
+        const totalPages = Math.ceil(total / perPage);
+
+        const prices = await this.prismaService.pricing.findMany({
+            where: where,
             include: {
                 User: {
                     select: {
@@ -307,11 +310,14 @@ export class PricingService {
                             Material: true,
                             Product: true,
                             Location: true,
-                            Exit: true
+                            Exit: {
+                                include: {
+                                    Person: true
+                                }
+                            }
                         },
                         where: {
                             deleted_at: null,
-                            exited: true
                         }
                     },
                     VolumeEnter: {
@@ -325,12 +331,16 @@ export class PricingService {
             })
         }
 
+        
+
+
         const response = {
             data: prices,
             total,
             page,
             totalPages,
-            entries
+            entries,
+            totalEntries
         };
 
         return response
