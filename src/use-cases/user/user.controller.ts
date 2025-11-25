@@ -75,4 +75,10 @@ export class UserController {
     async checkPermission(@Param() data: { id: string }, @User() user_id: string) {
         return await this.userService.checkPermission(data.id, user_id)
     }
+
+    @Public()
+    @Post('/reset-password')
+    async resetPassword(@Body() data: { email:string }) {
+        return await this.userService.resetPassword(data)
+    }
 }
