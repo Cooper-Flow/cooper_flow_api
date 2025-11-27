@@ -11,6 +11,10 @@ export class PricingVolumesDTO {
 
     @IsOptional()
     @IsString()
+    id: string;
+
+    @IsOptional()
+    @IsString()
     filter: string;
 
     @IsNotEmpty()

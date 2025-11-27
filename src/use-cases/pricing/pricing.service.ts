@@ -25,6 +25,7 @@ export class PricingService {
         const producer_id = params.producer_id ?? null;
         const filter = params.filter ?? RegisterType.entry;
         const batch = params.batch ?? null;
+        const id = Number(params.id) ?? null;
 
         const order: Prisma.SortOrder =
             (params.order as unknown as Prisma.SortOrder) || 'desc';
@@ -41,7 +42,8 @@ export class PricingService {
                 const enters = await this.prismaService.entry.findMany({
                     where: {
                         ...(producer_id && { producer_id: producer_id }),
-                        ...(batch && { batch: { contains: batch, mode: 'insensitive' } })
+                        ...(batch && { batch: { contains: batch, mode: 'insensitive' } }),
+                        ...(id && { id })
                     },
                     include: {
                         VolumeLog: {
@@ -116,6 +118,7 @@ export class PricingService {
             case RegisterType.exit: {
 
                 const whereExit: any = {
+                    ...(id && { id }),
                     Volume: {
                         some: {
                             Entry: {
