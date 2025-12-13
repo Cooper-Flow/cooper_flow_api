@@ -551,7 +551,8 @@ export class RegisterService {
         const volumesProcess = await this.prismaService.volume.findMany({
             where: {
                 ...(entry_id && { entry_id: entry_id }),
-                exited: false
+                exited: false,
+                deleted_at: null
             },
             include: {
                 Location: true,
