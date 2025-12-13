@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/infra/database/prisma.service';
 import { BooleanHandlerService } from 'src/shared/handlers/boolean.handler';
 import { EntryCreateDTO } from './dto/entry-create.dto';
@@ -11,6 +11,8 @@ import { ExitStatus } from 'src/shared/constants/exit-types.enum';
 import { ExitCreateDTO } from './dto/exit.create.dto';
 import { VolumeService } from '../volume/volume.service';
 import { ExitCloseDTO } from './dto/exit-close.dto';
+import { TransformationDTO } from './dto/transformation.dto';
+import { EnterStatus } from 'src/shared/constants/enter-status.enum';
 
 @Injectable()
 export class RegisterService {
@@ -45,7 +47,8 @@ export class RegisterService {
                     field: data.field,
                     batch: data.batch,
                     entry_at: data.entry_at,
-                    observation: data.observation
+                    observation: data.observation,
+                    status: EnterStatus.ongoing
                 }
             })
 
@@ -473,8 +476,6 @@ export class RegisterService {
 
     async closeExit(data: ExitCloseDTO, user_id: string) {
 
-        const volumes = data.volumes;
-
         const exit = await this.prismaService.exit.findUnique({
             where: {
                 id: data.exit_id
@@ -491,48 +492,116 @@ export class RegisterService {
                 id: data.exit_id
             },
             data: {
-                exit_at: data.date,
+                exit_at: new Date(),
                 status: ExitStatus.closed,
-                invoice: data.invoice
             }
         })
 
-
-        const logs = volumes.map(async (vol) => {
-
-            const update = await this.prismaService.volume.update({
-                where:{
-                    id: vol
-                },
-                data: {
-                    location_id: null,
-                    exited: true,
-                    exit_id: updateExit.id,
-                }
-            })
-
-            const material = await this.prismaService.material.findUnique({
-                where: {
-                    id: update.material_id
-                }
-            })
-
-            const log = {
-                entry_id: update.entry_id,
-                origin_history: `Volume incluso na saída S${data.exit_id}`,
-                dropped_weight: 0,
-                generated_history: `${update.product_name} • ${update.type} ${update.size} (⇧ ${update.amount} ${update.amount > 1 ? 'unidades' : 'unidade'} • ${update.volume}kg) • ${material.name};`,
-                user_id: user_id
-            }
-
-            await this.volumeService.log(log)
-
-        })
-
-        await Promise.all(logs)
 
         return {
             message: 'Saída finalizada com sucesso'
+        }
+    }
+
+    async transformation(params: TransformationDTO) {
+
+
+        const entry_id = Number(params.entry_id) ?? null;
+
+        const enters = await this.prismaService.entry.findMany({
+            where: {
+                status: EnterStatus.ongoing
+            },
+            include: {
+                Producer: {
+                    include: {
+                        Person: true
+                    }
+                }
+            },
+            orderBy: {
+                id: 'desc'
+            }
+        });
+
+        if (!entry_id) {
+            return {
+                data: [],
+                enters: enters,
+                volumesProcess: [],
+                volumes: [],
+                totalProcessWeigth: 0
+            }
+        }
+
+        const entry = await this.prismaService.entry.findFirst({
+            where: {
+                id: entry_id
+            }
+        });
+
+        if (entry.status === EnterStatus.canceled) {
+            throw new ConflictException('Esta entrada está cancelada e não pode ser movimentada');
+        }
+
+        if (entry.status === EnterStatus.closed) {
+            throw new ConflictException('Esta entrada está encerrada e não pode ser movimentada');
+        }
+
+        const volumesProcess = await this.prismaService.volume.findMany({
+            where: {
+                ...(entry_id && { entry_id: entry_id }),
+                exited: false
+            },
+            include: {
+                Location: true,
+                Material: true,
+                Entry: {
+                    include: {
+                        Producer: {
+                            include: {
+                                Person: true
+                            }
+                        }
+                    }
+                },
+                Product: true
+            },
+            orderBy: {
+                Location: {
+                    name: 'asc'
+                }
+            }
+        });
+
+        const volumes = await this.prismaService.volumeEnter.findMany({
+            where: {
+                ...(entry_id && { entry_id: entry_id }),
+            },
+            include: {
+                Location: true,
+                Material: true,
+                Entry: {
+                    include: {
+                        Producer: {
+                            include: {
+                                Person: true
+                            }
+                        }
+                    }
+                },
+                Product: true
+            }
+        })
+
+        const totalProcessWeigth = volumes.reduce((sum, v) => sum + (v.weight || 0), 0);
+
+        return {
+            data: entry,
+            enters: enters,
+            volumesProcess: volumesProcess,
+            volumes: volumes,
+            totalProcessWeigth
         }
     }
 }

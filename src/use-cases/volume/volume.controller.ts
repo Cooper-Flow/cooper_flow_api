@@ -3,13 +3,14 @@ import { VolumeService } from './volume.service';
 import { VolumeDetailDTO } from './dto/volume-detail.dto';
 import { User } from 'src/decorators/user.decorator';
 import { VolumeTransformDTO } from './dto/volume-transform.dto';
+import { VolumeCreateDTO } from './dto/volume-create.dto';
 
 @Controller('volume')
 export class VolumeController {
 
     constructor(
         public volumeService: VolumeService
-    ) {}
+    ) { }
 
     @Get('/detail/:id')
     async detail(@Param() data: VolumeDetailDTO) {
@@ -17,12 +18,12 @@ export class VolumeController {
     }
 
     @Post('/transform')
-    async create(@Body() data: VolumeTransformDTO,  @User() user_id: string) {
+    async transform(@Body() data: VolumeTransformDTO, @User() user_id: string) {
         return await this.volumeService.transform(data, user_id)
     }
 
     @Post('/return')
-    async returnVolume(@Body() data: { volume_id: string, location_id: string },  @User() user_id: string) {
+    async returnVolume(@Body() data: { volume_id: string, location_id: string }, @User() user_id: string) {
         return await this.volumeService.returnVolume(data, user_id)
     }
 
@@ -32,17 +33,32 @@ export class VolumeController {
     }
 
     @Post('/undo')
-    async undoVolume(@Body() data: { volume_id: string },  @User() user_id: string) {
+    async undoVolume(@Body() data: { volume_id: string }, @User() user_id: string) {
         return await this.volumeService.undoVolume(data)
     }
 
     @Post('/group')
-    async groupVolume(@Body() data: { volumes: [],location_id: string },  @User() user_id: string) {
+    async groupVolume(@Body() data: { volumes: [], location_id: string }, @User() user_id: string) {
         return await this.volumeService.groupVolume(data)
     }
 
     @Post('/remove-group')
-    async removeGroupVolume(@Body() data: { volume_id: string },  @User() user_id: string) {
+    async removeGroupVolume(@Body() data: { volume_id: string }, @User() user_id: string) {
         return await this.volumeService.removeGroupVolume(data)
+    }
+
+    @Post('/create')
+    async create(@Body() data: VolumeCreateDTO, @User() user_id: string) {
+        return await this.volumeService.create(data, user_id)
+    }
+
+    @Post('/update')
+    async update(@Body() data: VolumeCreateDTO, @User() user_id: string) {
+        return await this.volumeService.update(data, user_id)
+    }
+
+    @Post('/move-exit')
+    async moveExit(@Body() data: { volume_id: string, exit_id: string }, @User() user_id: string) {
+        return await this.volumeService.moveExit(data, user_id)
     }
 }

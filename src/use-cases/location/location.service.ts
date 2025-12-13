@@ -103,27 +103,15 @@ export class LocationService {
             where: {
                 id: data.id,
             },
-            select: {
-                id: true,
-                name: true,
-                isActive: true,
-                description: true,
-                sector_id: true,
-                Sector: true,
-                created_at: true,
-                updated_at: true,
-
+            include: {
                 Volume: {
                     select: {
                         id: true,
                         created_at: true,
                         entry_id: true,
                         Entry: {
-                            select: {
-                                batch: true,
-                                field: true,
+                            include: {
                                 Register: true,
-                                observation: true,
                                 Producer: {
                                     select: {
                                         Person: true

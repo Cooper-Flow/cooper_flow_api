@@ -3,6 +3,7 @@ import { PrismaService } from 'src/infra/database/prisma.service';
 import { VolumeDetailDTO } from './dto/volume-detail.dto';
 import { VolumeTransformDTO } from './dto/volume-transform.dto';
 import { CalcHandlerService } from 'src/shared/handlers/calc.handler';
+import { VolumeCreateDTO } from './dto/volume-create.dto';
 
 @Injectable()
 export class VolumeService {
@@ -13,13 +14,12 @@ export class VolumeService {
     ) { }
 
     async detail(data: VolumeDetailDTO): Promise<any> {
+
         const volume = await this.prismaService.volume.findUnique({
             where: {
                 id: data.id,
             },
-            select: {
-                id: true,
-                entry_id: true,
+            include: {
                 Entry: {
                     select: {
                         created_at: true,
@@ -42,7 +42,6 @@ export class VolumeService {
                         }
                     }
                 },
-                product_id: true,
                 Product: {
                     select: {
                         name: true,
@@ -51,9 +50,6 @@ export class VolumeService {
                         ProductType: true,
                     }
                 },
-                size: true,
-                type: true,
-                volume: true,
                 Material: true,
                 Location: {
                     select: {
@@ -62,14 +58,6 @@ export class VolumeService {
                         Sector: true
                     }
                 },
-                amount: true,
-                weight: true,
-                transformed: true,
-                exited: true,
-                product_name: true,
-                created_at: true,
-                updated_at: true,
-                undo_location_id: true
             },
         });
 
@@ -355,6 +343,7 @@ export class VolumeService {
                 data: {
                     location_id: volume.undo_location_id,
                     undo_location_id: null,
+                    exit_id: null,
                     exited: false,
                 }
 
@@ -433,5 +422,113 @@ export class VolumeService {
         }
     }
 
+    async create(data: VolumeCreateDTO, user_id: string) {
 
+        const product = await this.prismaService.product.findFirst({
+            where: {
+                id: data.product_id
+            }
+        })
+
+        const material = await this.prismaService.material.findFirst({
+            where: {
+                id: data.material_id
+            }
+        })
+
+        const volume = await this.prismaService.volume.create({
+            data: {
+                entry_id: Number(data.entry_id),
+                product_id: data.product_id,
+                product_name: product.name,
+                size: data.product_size,
+                type: data.product_type,
+                amount: 0,
+                volume: material.volume,
+                transformed: true,
+                exited: false,
+                material_id: data.material_id,
+                location_id: data.location_id,
+                exit_id: null,
+                weight: data.weight,
+                isStash: data.isStash
+            }
+        });
+
+        if (volume) {
+            return {
+                message: 'Volume criado com sucesso'
+            }
+        }
+    }
+
+    async update(data: VolumeCreateDTO, user_id: string) {
+
+        const product = await this.prismaService.product.findFirst({
+            where: {
+                id: data.product_id
+            }
+        })
+
+        const material = await this.prismaService.material.findFirst({
+            where: {
+                id: data.material_id
+            }
+        })
+
+        const volume = await this.prismaService.volume.update({
+            where: {
+                id: data.id
+            },
+            data: {
+                entry_id: Number(data.entry_id),
+                product_id: data.product_id,
+                product_name: product.name,
+                size: data.product_size,
+                type: data.product_type,
+                amount: 0,
+                volume: material.volume,
+                transformed: true,
+                exited: false,
+                material_id: data.material_id,
+                location_id: data.location_id,
+                exit_id: null,
+                weight: data.weight,
+                isStash: data.isStash
+            }
+        });
+
+        if (volume) {
+            return {
+                message: 'Volume atualizado com sucesso'
+            }
+        }
+    }
+
+    async moveExit(data: { volume_id: string, exit_id: string }, user_id: string) {
+
+        const volume = await this.prismaService.volume.findFirst({
+            where: {
+                id: data.volume_id
+            }
+        })
+
+        const move = await this.prismaService.volume.update({
+            where: {
+                id: data.volume_id
+            },
+            data: {
+                location_id: null,
+                exit_id: Number( data.exit_id),
+                exited: true,
+                undo_location_id: volume.location_id
+            }
+        })
+
+        if(move){
+            return {
+                message: 'Volume alocado para saída'
+            }
+        }
+    }
 }

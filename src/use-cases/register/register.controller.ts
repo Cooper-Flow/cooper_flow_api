@@ -6,6 +6,7 @@ import { RegisterPaginateDTO } from './dto/register-list.dto';
 import { RegisterDetailDTO } from './dto/register-detail.dto';
 import { ExitCreateDTO } from './dto/exit.create.dto';
 import { ExitCloseDTO } from './dto/exit-close.dto';
+import { TransformationDTO } from './dto/transformation.dto';
 
 @Controller('register')
 export class RegisterController {
@@ -47,5 +48,10 @@ export class RegisterController {
     @Get('/exit')
     async list() {
         return await this.registerService.listExit();
+    }
+
+    @Get('/transformation')
+    async transformation(@Query() params: TransformationDTO) {
+        return await this.registerService.transformation(params);
     }
 }

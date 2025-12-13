@@ -246,6 +246,8 @@ model Entry {
 
   observation String? @db.Text()
 
+  status String @default("closed")
+
   created_at DateTime @default(now()) @db.Timestamp
   updated_at DateTime @updatedAt @db.Timestamp
 
@@ -336,11 +338,13 @@ model Volume {
   Exit    Exit? @relation(fields: [exit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   volume_group_id String?
-  VolumeGroup    VolumeGroup? @relation(fields: [volume_group_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  VolumeGroup     VolumeGroup? @relation(fields: [volume_group_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   created_at DateTime  @default(now()) @db.Timestamp
   updated_at DateTime  @updatedAt @db.Timestamp
   deleted_at DateTime?
+
+  isStash Boolean @default(false)
 
   PricingItem PricingItem[]
 
