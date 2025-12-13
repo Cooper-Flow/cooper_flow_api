@@ -595,7 +595,7 @@ export class RegisterService {
             }
         })
 
-        const totalProcessWeigth = volumes.reduce((sum, v) => sum + (v.weight || 0), 0);
+        const totalProcessWeigth = volumesProcess.reduce((sum, v) => sum + (v.weight || 0), 0);
 
         return {
             data: entry,
