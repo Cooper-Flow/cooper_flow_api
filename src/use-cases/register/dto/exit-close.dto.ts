@@ -17,6 +17,10 @@ export class ExitCloseDTO {
     @IsNotEmpty()
     @IsArray()
     volumes: Array<string>;
+
+    @IsOptional()
+    @IsString()
+    observation: string;
 }
 
 

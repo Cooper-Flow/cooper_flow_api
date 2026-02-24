@@ -94,7 +94,7 @@ export class RegisterService {
                 message: 'Entrada feita com sucesso',
             };
         }
-        catch (error) {
+        catch (error: any) {
             throw new ConflictException(error.message)
         }
     }
@@ -125,7 +125,7 @@ export class RegisterService {
                 message: 'Saída criada com sucesso',
             };
         }
-        catch (error) {
+        catch (error: any) {
             throw new ConflictException(error.message)
         }
     }
@@ -399,6 +399,9 @@ export class RegisterService {
             },
             where: {
                 status: ExitStatus.ongoing
+            },
+            orderBy: {
+                created_at: 'desc'
             }
         })
 
@@ -493,7 +496,8 @@ export class RegisterService {
             data: {
                 exit_at: data.date,
                 status: ExitStatus.closed,
-                invoice: data.invoice
+                invoice: data.invoice,
+                observation: data.observation
             }
         })
 
