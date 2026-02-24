@@ -160,7 +160,7 @@ export class PersonService {
                 message: 'Pessoa criada com sucesso',
             };
         }
-        catch (error) {
+        catch (error: any) {
             throw new ConflictException(error.message)
         }
     }
@@ -336,5 +336,23 @@ export class PersonService {
             message: 'Pessoa atualizada com sucesso',
             type: 'success'
         };
+    }
+
+    async ListProducer() {
+
+        const producers = await this.prismaService.person.findMany({
+            where: {
+                isProducer: true 
+            },
+            include: {
+                Producer: true
+            },
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        return producers;
+
     }
 }

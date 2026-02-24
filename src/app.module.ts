@@ -17,6 +17,8 @@ import { RegisterModule } from './use-cases/register/register.module';
 import { SystemModule } from './use-cases/system/system.module';
 import { VolumeModule } from './use-cases/volume/volume.module';
 import { PricingModule } from './use-cases/pricing/pricing.module';
+import { BoxModule } from './use-cases/box/box.module';
+import { TrackModule } from './use-cases/track/track.module';
 @Module({
   imports: [
     AuthModule,
@@ -46,7 +48,9 @@ import { PricingModule } from './use-cases/pricing/pricing.module';
     RegisterModule,
     SystemModule,
     VolumeModule,
-    PricingModule
+    PricingModule,
+    BoxModule,
+    TrackModule
   ],
   controllers: [],
   providers: [MailService],

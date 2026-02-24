@@ -97,7 +97,7 @@ export class RegisterService {
                 message: 'Entrada feita com sucesso',
             };
         }
-        catch (error) {
+        catch (error: any) {
             throw new ConflictException(error.message)
         }
     }
@@ -128,7 +128,7 @@ export class RegisterService {
                 message: 'Saída criada com sucesso',
             };
         }
-        catch (error) {
+        catch (error: any) {
             throw new ConflictException(error.message)
         }
     }

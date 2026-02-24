@@ -32,4 +32,9 @@ export class PersonController {
         return await this.personService.update(data, user_id)
     }
 
+    @Get('/list-producer')
+    async ListProducer() {
+        return await this.personService.ListProducer();
+    }
+
 }

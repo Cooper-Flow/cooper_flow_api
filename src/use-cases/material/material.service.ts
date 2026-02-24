@@ -89,7 +89,7 @@ export class MaterialService {
                 message: 'Material criado com sucesso',
             };
         }
-        catch (error) {
+        catch (error: any) {
             throw new ConflictException(error.message)
         }
     }
