@@ -93,7 +93,7 @@ export class LocationService {
                 message: 'Localização criado com sucesso',
             };
         }
-        catch (error) {
+        catch (error:any) {
             throw new ConflictException(error.message)
         }
     }
@@ -354,12 +354,7 @@ export class LocationService {
 
         const locations = await this.prismaService.location.findMany({
             where: filterConditions,
-            select: {
-                id: true,
-                name: true,
-                isActive: true,
-                description: true,
-                sector_id: true,
+            include: {
                 Sector: true,
                 Volume: {
                     select: {
@@ -484,7 +479,7 @@ export class LocationService {
                 totalVolumeWeight,
                 totalGroupWeight,
                 totalWeight: totalVolumeWeight + totalGroupWeight,
-                totalVolumes 
+                totalVolumes
             };
         });
 

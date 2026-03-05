@@ -25,26 +25,50 @@ export class PricingService {
         const producer_id = params.producer_id ?? null;
         const filter = params.filter ?? RegisterType.entry;
         const batch = params.batch ?? null;
-        const id = Number(params.id) ?? null;
+        const id = params.id ? Number(params.id) : null;
 
         const order: Prisma.SortOrder =
             (params.order as unknown as Prisma.SortOrder) || 'desc';
+
         const page = params.page ? +params.page : 1;
         const perPage = params.pageSize ? +params.pageSize : 10;
 
-        const total = await this.prismaService.register.count();
-
-        const totalPages = Math.ceil(total / perPage);
         const offset = perPage * (page - 1);
 
+        const start_date = params.start_date ? new Date(String(params.start_date)) : null;
+        const end_date = params.end_date ? new Date(String(params.end_date)) : null;
+
+        if (end_date) {
+            end_date.setHours(23, 59, 59, 999);
+        }
+
+        const dateFilter: any = {};
+
+        if (start_date && !isNaN(start_date.getTime())) {
+            dateFilter.gte = start_date;
+        }
+
+        if (end_date && !isNaN(end_date.getTime())) {
+            dateFilter.lte = end_date;
+        }
+
         switch (filter) {
+
             case RegisterType.entry: {
+
+                const whereEntry: any = {
+                    ...(producer_id && { producer_id }),
+                    ...(batch && { batch: { contains: batch, mode: 'insensitive' } }),
+                    ...(id && { id }),
+                    ...(Object.keys(dateFilter).length ? { created_at: dateFilter } : {})
+                };
+
+                const total = await this.prismaService.entry.count({
+                    where: whereEntry
+                });
+
                 const enters = await this.prismaService.entry.findMany({
-                    where: {
-                        ...(producer_id && { producer_id: producer_id }),
-                        ...(batch && { batch: { contains: batch, mode: 'insensitive' } }),
-                        ...(id && { id })
-                    },
+                    where: whereEntry,
                     include: {
                         VolumeLog: {
                             include: {
@@ -102,33 +126,34 @@ export class PricingService {
                     take: perPage,
                     skip: offset,
                     orderBy: {
-                        created_at: order,
-                    },
-                })
+                        created_at: order
+                    }
+                });
 
-                const response = {
-                    enters: enters,
+                const totalPages = Math.ceil(total / perPage);
+
+                return {
+                    enters,
                     total,
                     page,
-                    totalPages,
-                }
-
-                return response;
+                    totalPages
+                };
             }
+
             case RegisterType.exit: {
 
                 const whereExit: any = {
                     ...(id && { id }),
+                    ...(Object.keys(dateFilter).length ? { created_at: dateFilter } : {}),
                     Volume: {
                         some: {
                             Entry: {
-                                ...(producer_id && { producer_id: producer_id }),
+                                ...(producer_id && { producer_id })
                             }
                         }
                     }
-                }
+                };
 
-                // Total para paginação
                 const total = await this.prismaService.exit.count({
                     where: whereExit
                 });
@@ -171,31 +196,49 @@ export class PricingService {
                     }
                 });
 
+                const exitsWithMaterials = exits.map(exit => {
+
+                    const materialMap: any = {};
+
+                    exit.Volume.forEach(volume => {
+
+                        const materialId = volume.Material?.id;
+
+                        if (!materialId) return;
+
+                        if (!materialMap[materialId]) {
+                            materialMap[materialId] = {
+                                material_id: materialId,
+                                material_name: volume.Material.name,
+                                total_weight: 0,
+                                material_volume: volume.Material.volume,
+                                amount: 0
+                            };
+                        }
+
+                        materialMap[materialId].total_weight += volume.weight || 0;
+
+                        materialMap[materialId].amount =
+                            materialMap[materialId].total_weight /
+                            materialMap[materialId].material_volume;
+                    });
+
+                    return {
+                        ...exit,
+                        materials_summary: Object.values(materialMap)
+                    };
+                });
+
                 const totalPages = Math.ceil(total / perPage);
 
-                const response = {
-                    exits: exits,
+                return {
+                    exits: exitsWithMaterials,
                     total,
                     page,
-                    totalPages,
-                }
-
-                return response;
+                    totalPages
+                };
             }
-
         }
-
-        const exits = await this.prismaService.exit.findMany({
-            where: {
-
-            }
-        })
-
-        const volumes = await this.prismaService.volume.findMany({
-            where: {
-
-            }
-        })
     }
 
     async create(data: PricingCreateDTO, user_id: string) {
@@ -470,7 +513,7 @@ export class PricingService {
             }
 
         }
-        catch (err) {
+        catch (err: any) {
             throw new Error(err)
         }
     }
@@ -496,7 +539,7 @@ export class PricingService {
                 }
             }
         }
-        catch (err) {
+        catch (err: any) {
             throw new Error(err)
         }
     }

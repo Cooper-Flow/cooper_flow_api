@@ -1,21 +1,30 @@
-import { IsBoolean, IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from '@nestjs/class-validator';
+import { IsBoolean, IsDateString, IsEmail, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from '@nestjs/class-validator';
 
 export class PricingVolumesDTO {
+
     @IsNotEmpty()
     @IsString()
     producer_id: string;
 
     @IsOptional()
     @IsString()
-    batch: string;
+    batch?: string;
 
     @IsOptional()
     @IsString()
-    id: string;
+    id?: string;
 
     @IsOptional()
     @IsString()
-    filter: string;
+    filter?: string;
+
+    @IsOptional()
+    @IsDateString()
+    start_date?: string;
+
+    @IsOptional()
+    @IsDateString()
+    end_date?: string;
 
     @IsNotEmpty()
     @IsNumber()
